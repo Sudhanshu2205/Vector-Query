@@ -7,6 +7,8 @@ __pycache__/
 env/
 venv/
 ENV/
+.venv/
+.conda-rag-env/
 build/
 develop-eggs/
 dist/
@@ -47,3 +49,7 @@ vector_store/*.metadata
 # OS
 .DS_Store
 Thumbs.db
+
+# Local runtime/cache
+.cache/
+*.log

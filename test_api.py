@@ -7,13 +7,14 @@ support emoji characters in the active code page.
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
 import requests
 
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("VECTORQUERY_BASE_URL", "http://localhost:8000")
 SAMPLE_DOCS_DIR = Path("sample_documents")
 
 
