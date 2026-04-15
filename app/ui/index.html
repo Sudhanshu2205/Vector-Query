@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VectorQuery Control Room</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">VectorQuery UI</p>
+        <h1>Test the full RAG flow from one screen.</h1>
+        <p class="hero-text">
+          Upload a PDF or TXT file, watch indexing progress, then ask grounded questions
+          against the processed document.
+        </p>
+      </div>
+
+      <div class="hero-actions">
+        <a class="ghost-link" href="/docs" target="_blank" rel="noreferrer">Open API Docs</a>
+        <a class="ghost-link" href="/" target="_blank" rel="noreferrer">View API Root</a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel panel-upload">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Step 1</p>
+            <h2>Upload a document</h2>
+          </div>
+          <span class="status-pill" id="status-pill">Idle</span>
+        </div>
+
+        <form id="upload-form" class="upload-form">
+          <label class="dropzone" for="file-input" id="dropzone">
+            <input id="file-input" name="file" type="file" accept=".pdf,.txt">
+            <span class="dropzone-title">Drop a PDF or TXT file here</span>
+            <span class="dropzone-subtitle">or click to browse from your computer</span>
+          </label>
+
+          <div class="upload-meta">
+            <div>
+              <p class="meta-label">Selected file</p>
+              <p class="meta-value" id="selected-file">None</p>
+            </div>
+            <button type="submit" class="primary-button" id="upload-button">Start Processing</button>
+          </div>
+        </form>
+
+        <div class="info-grid">
+          <article class="info-card">
+            <p class="meta-label">Current document</p>
+            <p class="doc-id" id="current-doc-id">Not uploaded yet</p>
+          </article>
+          <article class="info-card">
+            <p class="meta-label">Processing status</p>
+            <p class="status-text" id="processing-status">Waiting for upload</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel-query">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Step 2</p>
+            <h2>Ask a question</h2>
+          </div>
+        </div>
+
+        <form id="query-form" class="query-form">
+          <label class="field-group">
+            <span>Question</span>
+            <textarea
+              id="question-input"
+              rows="4"
+              placeholder="What is the main idea of this document?"
+            ></textarea>
+          </label>
+
+          <div class="query-controls">
+            <label class="field-group field-group-small">
+              <span>Top K chunks</span>
+              <input id="top-k-input" type="number" min="1" max="10" value="3">
+            </label>
+            <button type="submit" class="primary-button" id="query-button">Run Query</button>
+          </div>
+        </form>
+
+        <div class="quick-prompts">
+          <button class="prompt-chip" data-question="What is the main idea of this document?">Main idea</button>
+          <button class="prompt-chip" data-question="What are the key benefits described here?">Key benefits</button>
+          <button class="prompt-chip" data-question="What challenges or risks are mentioned?">Challenges</button>
+        </div>
+      </section>
+
+      <section class="panel panel-answer">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Step 3</p>
+            <h2>Review the answer</h2>
+          </div>
+        </div>
+
+        <div class="answer-shell">
+          <div class="answer-banner hidden" id="answer-banner"></div>
+          <div class="answer-content" id="answer-content">
+            Your answer will appear here after you upload a document and run a query.
+          </div>
+        </div>
+
+        <div class="metrics-grid" id="metrics-grid">
+          <article class="metric-card">
+            <p class="meta-label">Total latency</p>
+            <p class="metric-value">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="meta-label">Embedding</p>
+            <p class="metric-value">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="meta-label">Retrieval</p>
+            <p class="metric-value">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="meta-label">Generation</p>
+            <p class="metric-value">--</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel-sources">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Evidence</p>
+            <h2>Retrieved source chunks</h2>
+          </div>
+        </div>
+
+        <div class="source-list" id="source-list">
+          <p class="empty-state">No sources yet. Ask a question to inspect the retrieved chunks.</p>
+        </div>
+      </section>
+
+      <section class="panel panel-history">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Session</p>
+            <h2>Recent documents</h2>
+          </div>
+        </div>
+
+        <div class="history-list" id="history-list">
+          <p class="empty-state">Uploaded documents will appear here for quick reuse.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
