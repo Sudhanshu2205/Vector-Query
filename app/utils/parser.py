@@ -1,5 +1,9 @@
-from pypdf import PdfReader
 from pathlib import Path
+
+try:
+    from pypdf import PdfReader
+except Exception:
+    PdfReader = None
 
 
 class DocumentParser:
@@ -29,6 +33,12 @@ class DocumentParser:
         """
         text = ""
         try:
+            if PdfReader is None:
+                raise ValueError(
+                    "PDF support requires the 'pypdf' package, which is not available "
+                    "in the current Python environment."
+                )
+
             reader = PdfReader(file_path)
             for page in reader.pages:
                 text += page.extract_text() + "\n"

@@ -1,5 +1,22 @@
-import tiktoken
+import re
 from typing import List
+
+try:
+    import tiktoken
+except Exception:
+    tiktoken = None
+
+
+class _RegexEncoding:
+    """Simple tokenizer fallback when tiktoken is unavailable."""
+
+    token_pattern = re.compile(r"\S+")
+
+    def encode(self, text: str) -> List[str]:
+        return self.token_pattern.findall(text)
+
+    def decode(self, tokens: List[str]) -> str:
+        return " ".join(tokens)
 
 
 class ChunkingService:
@@ -25,7 +42,10 @@ class ChunkingService:
         """
         self.chunk_size = chunk_size
         self.overlap = overlap
-        self.encoding = tiktoken.get_encoding("cl100k_base")
+        if tiktoken is not None:
+            self.encoding = tiktoken.get_encoding("cl100k_base")
+        else:
+            self.encoding = _RegexEncoding()
     
     def count_tokens(self, text: str) -> int:
         """
@@ -117,7 +137,6 @@ class ChunkingService:
     
     def _split_into_sentences(self, text: str) -> List[str]:
         """Split text into sentences."""
-        import re
         sentences = re.split(r'(?<=[.!?])\s+', text)
         return [s.strip() for s in sentences if s.strip()]
     

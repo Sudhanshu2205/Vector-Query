@@ -175,9 +175,9 @@ def main():
         print("=" * 80)
 
     except requests.exceptions.ConnectionError:
-        print("[FAIL] Could not connect to the server at localhost:8000")
+        print(f"[FAIL] Could not connect to the server at {BASE_URL}")
         print("       Make sure the FastAPI server is running:")
-        print("       python -m uvicorn app.main:app --reload")
+        print("       .\\run_vectorquery.ps1")
     except Exception as exc:
         print(f"[FAIL] Test failed with error: {str(exc)}")
         import traceback

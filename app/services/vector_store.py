@@ -1,9 +1,13 @@
 import os
 import pickle
 import numpy as np
-import faiss
-from typing import List, Dict, Tuple, Optional
+from typing import Any, List, Dict, Tuple
 from pathlib import Path
+
+try:
+    import faiss
+except Exception:
+    faiss = None
 
 
 class VectorStore:
@@ -24,10 +28,17 @@ class VectorStore:
         self.vector_store_dir = Path(vector_store_dir)
         self.vector_store_dir.mkdir(parents=True, exist_ok=True)
         
-        self.indexes: Dict[str, faiss.Index] = {}
+        self.backend = "faiss" if faiss is not None else "numpy"
+        self.indexes: Dict[str, Any] = {}
         self.metadata: Dict[str, List[Dict]] = {}
     
-    def create_index(self, doc_id: str, embedding_dim: int) -> faiss.Index:
+    def _normalize_embeddings(self, embeddings: np.ndarray) -> np.ndarray:
+        """Normalize vectors for cosine similarity."""
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return embeddings / norms
+
+    def create_index(self, doc_id: str, embedding_dim: int):
         """
         Create a new FAISS index for a document.
         
@@ -38,8 +49,14 @@ class VectorStore:
         Returns:
             FAISS index
         """
-        # Use IndexFlatIP for inner product (cosine similarity with normalized vectors)
-        index = faiss.IndexFlatIP(embedding_dim)
+        if self.backend == "faiss":
+            index = faiss.IndexFlatIP(embedding_dim)
+        else:
+            index = {
+                "embedding_dim": embedding_dim,
+                "embeddings": np.empty((0, embedding_dim), dtype="float32"),
+            }
+
         self.indexes[doc_id] = index
         self.metadata[doc_id] = []
         
@@ -57,11 +74,17 @@ class VectorStore:
         if doc_id not in self.indexes:
             raise ValueError(f"No index found for document {doc_id}")
         
-        # Normalize embeddings for cosine similarity
-        faiss.normalize_L2(embeddings)
-        
-        # Add to index
-        self.indexes[doc_id].add(embeddings.astype('float32'))
+        normalized_embeddings = embeddings.astype("float32")
+
+        if self.backend == "faiss":
+            faiss.normalize_L2(normalized_embeddings)
+            self.indexes[doc_id].add(normalized_embeddings)
+        else:
+            normalized_embeddings = self._normalize_embeddings(normalized_embeddings)
+            existing_embeddings = self.indexes[doc_id]["embeddings"]
+            self.indexes[doc_id]["embeddings"] = np.vstack(
+                [existing_embeddings, normalized_embeddings]
+            )
         
         # Store metadata
         for i, chunk in enumerate(chunks):
@@ -86,12 +109,23 @@ class VectorStore:
         if doc_id not in self.indexes:
             raise ValueError(f"No index found for document {doc_id}")
         
-        # Normalize query embedding
-        query_embedding = query_embedding.reshape(1, -1).astype('float32')
-        faiss.normalize_L2(query_embedding)
-        
-        # Search
-        scores, indices = self.indexes[doc_id].search(query_embedding, top_k)
+        query_embedding = query_embedding.reshape(1, -1).astype("float32")
+
+        if self.backend == "faiss":
+            faiss.normalize_L2(query_embedding)
+            scores, indices = self.indexes[doc_id].search(query_embedding, top_k)
+        else:
+            query_embedding = self._normalize_embeddings(query_embedding)
+            embeddings = self.indexes[doc_id]["embeddings"]
+
+            if len(embeddings) == 0:
+                return [], np.array([], dtype="float32")
+
+            scores_vector = embeddings @ query_embedding.T
+            scores_vector = scores_vector.reshape(-1)
+            sorted_indices = np.argsort(scores_vector)[::-1][:top_k]
+            scores = np.array([scores_vector[sorted_indices]], dtype="float32")
+            indices = np.array([sorted_indices], dtype="int64")
         
         # Get metadata for results
         results = []
@@ -113,14 +147,18 @@ class VectorStore:
         if doc_id not in self.indexes:
             raise ValueError(f"No index found for document {doc_id}")
         
-        # Save FAISS index
         index_path = self.vector_store_dir / f"{doc_id}.index"
-        faiss.write_index(self.indexes[doc_id], str(index_path))
-        
-        # Save metadata
         metadata_path = self.vector_store_dir / f"{doc_id}.metadata"
-        with open(metadata_path, 'wb') as f:
-            pickle.dump(self.metadata[doc_id], f)
+
+        if self.backend == "faiss":
+            faiss.write_index(self.indexes[doc_id], str(index_path))
+            with open(metadata_path, "wb") as f:
+                pickle.dump(self.metadata[doc_id], f)
+        else:
+            with open(index_path, "wb") as f:
+                pickle.dump(self.indexes[doc_id], f)
+            with open(metadata_path, "wb") as f:
+                pickle.dump(self.metadata[doc_id], f)
     
     def load_index(self, doc_id: str):
         """
@@ -135,10 +173,12 @@ class VectorStore:
         if not index_path.exists() or not metadata_path.exists():
             raise ValueError(f"No saved index found for document {doc_id}")
         
-        # Load FAISS index
-        self.indexes[doc_id] = faiss.read_index(str(index_path))
-        
-        # Load metadata
+        if self.backend == "faiss":
+            self.indexes[doc_id] = faiss.read_index(str(index_path))
+        else:
+            with open(index_path, "rb") as f:
+                self.indexes[doc_id] = pickle.load(f)
+
         with open(metadata_path, 'rb') as f:
             self.metadata[doc_id] = pickle.load(f)
     
